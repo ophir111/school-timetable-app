@@ -4,7 +4,7 @@ const dayButtonsDiv = document.getElementById("dayButtons");
 const classSelect = document.getElementById("classSelect");
 let savedClass = localStorage.getItem("selectedClass");
 const themeToggle = document.getElementById("themeToggle");
-const SERVER_URL = "http://localhost:3000";
+const SERVER_URL = "https://school-timetable-server.onrender.com";
 
 
 const lessonTimes = {
