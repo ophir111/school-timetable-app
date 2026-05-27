@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>My Timetable</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#111827">
+</head>
+
+<body>
+  <main class="app">
+    <button id="themeToggle">☾</button>
+    <h1>המערכת שלי</h1>
+
+    <div class="controls">
+      <label for="classSelect">בחר כיתה:</label>
+
+      <select id="classSelect">
+        <option value="">טוען כיתות...</option>
+      </select>
+
+      <button id="loadBtn">טען מערכת</button>
+    </div>
+
+    <div id="dayButtons"></div>
+
+    <div id="lessons"></div>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
