@@ -16,11 +16,16 @@ export default async (request) => {
       });
     }
 
-    // This follows the same process as the working Render server.
     const firstResponse = await fetch(SCHOOL_URL, {
       headers: {
-        "User-Agent": "Mozilla/5.0"
-      }
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+          "AppleWebKit/537.36 Chrome/150 Safari/537.36",
+        "Accept":
+          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "he-IL,he;q=0.9,en;q=0.8"
+      },
+      redirect: "follow"
     });
 
     if (!firstResponse.ok) {
@@ -31,21 +36,29 @@ export default async (request) => {
 
     const firstHtml = await firstResponse.text();
 
-    function getValue(id) {
-      const regex = new RegExp(
-        `id="${escapeRegExp(id)}" value="([^"]*)"`
-      );
+    const viewState = getValue(
+      firstHtml,
+      "__VIEWSTATE"
+    );
 
-      const match = firstHtml.match(regex);
-      return match ? match[1] : "";
-    }
+    const viewStateGenerator = getValue(
+      firstHtml,
+      "__VIEWSTATEGENERATOR"
+    );
 
-    const viewState = getValue("__VIEWSTATE");
-    const viewStateGenerator =
-      getValue("__VIEWSTATEGENERATOR");
+    const eventValidation = getValue(
+      firstHtml,
+      "__EVENTVALIDATION"
+    );
 
     if (!viewState) {
       throw new Error("__VIEWSTATE was not found");
+    }
+
+    if (!eventValidation) {
+      throw new Error(
+        "__EVENTVALIDATION was not found"
+      );
     }
 
     const formData = new URLSearchParams();
@@ -58,9 +71,15 @@ export default async (request) => {
     formData.set("__EVENTARGUMENT", "");
     formData.set("__LASTFOCUS", "");
     formData.set("__VIEWSTATE", viewState);
+
     formData.set(
       "__VIEWSTATEGENERATOR",
       viewStateGenerator
+    );
+
+    formData.set(
+      "__EVENTVALIDATION",
+      eventValidation
     );
 
     formData.set(
@@ -84,11 +103,19 @@ export default async (request) => {
     const secondResponse = await fetch(SCHOOL_URL, {
       method: "POST",
       headers: {
-        "User-Agent": "Mozilla/5.0",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+          "AppleWebKit/537.36 Chrome/150 Safari/537.36",
+        "Accept":
+          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "he-IL,he;q=0.9,en;q=0.8",
         "Content-Type":
-          "application/x-www-form-urlencoded"
+          "application/x-www-form-urlencoded",
+        "Origin": "https://gymnasia.iscool.co.il",
+        "Referer": SCHOOL_URL
       },
-      body: formData.toString()
+      body: formData.toString(),
+      redirect: "follow"
     });
 
     const html = await secondResponse.text();
@@ -101,7 +128,10 @@ export default async (request) => {
 
     if (!html.includes("TTTable")) {
       throw new Error(
-        `Timetable was not found. Response length: ${html.length}`
+        `Timetable was not found. ` +
+        `Status: ${secondResponse.status}, ` +
+        `URL: ${secondResponse.url}, ` +
+        `length: ${html.length}`
       );
     }
 
@@ -127,6 +157,36 @@ export default async (request) => {
     );
   }
 };
+
+function getValue(html, id) {
+  const inputRegex = new RegExp(
+    `<input[^>]*id=["']${escapeRegExp(id)}["'][^>]*>`,
+    "i"
+  );
+
+  const inputTag = html.match(inputRegex)?.[0];
+
+  if (!inputTag) {
+    return "";
+  }
+
+  const valueMatch = inputTag.match(
+    /value=["']([^"']*)["']/i
+  );
+
+  return valueMatch
+    ? decodeHtml(valueMatch[1])
+    : "";
+}
+
+function decodeHtml(value) {
+  return value
+    .replaceAll("&amp;", "&")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&#39;", "'")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">");
+}
 
 function escapeRegExp(value) {
   return value.replace(
