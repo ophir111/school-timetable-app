@@ -4,8 +4,7 @@ const dayButtonsDiv = document.getElementById("dayButtons");
 const classSelect = document.getElementById("classSelect");
 let savedClass = localStorage.getItem("selectedClass");
 const themeToggle = document.getElementById("themeToggle");
-const SERVER_URL = "https://school-timetable-server.onrender.com";
-
+const SERVER_URL = "/.netlify/functions";
 
 const lessonTimes = {
   1: { start: "08:20", end: "09:00" },
