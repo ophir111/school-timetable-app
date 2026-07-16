@@ -1,0 +1,278 @@
+{
+  "updatedAt": "2026-07-16T22:55:41.939Z",
+  "total": 54,
+  "successful": 54,
+  "failed": 0,
+  "results": [
+    {
+      "id": "49",
+      "name": "ז1",
+      "success": true
+    },
+    {
+      "id": "46",
+      "name": "ז2",
+      "success": true
+    },
+    {
+      "id": "2",
+      "name": "ז3",
+      "success": true
+    },
+    {
+      "id": "3",
+      "name": "ז4",
+      "success": true
+    },
+    {
+      "id": "15",
+      "name": "ז5",
+      "success": true
+    },
+    {
+      "id": "57",
+      "name": "ז6",
+      "success": true
+    },
+    {
+      "id": "24",
+      "name": "ז7",
+      "success": true
+    },
+    {
+      "id": "66",
+      "name": "ז8",
+      "success": true
+    },
+    {
+      "id": "63",
+      "name": "ח1",
+      "success": true
+    },
+    {
+      "id": "11",
+      "name": "ח2",
+      "success": true
+    },
+    {
+      "id": "12",
+      "name": "ח3",
+      "success": true
+    },
+    {
+      "id": "13",
+      "name": "ח4",
+      "success": true
+    },
+    {
+      "id": "9",
+      "name": "ח5",
+      "success": true
+    },
+    {
+      "id": "40",
+      "name": "ח6",
+      "success": true
+    },
+    {
+      "id": "47",
+      "name": "ח7",
+      "success": true
+    },
+    {
+      "id": "68",
+      "name": "ח8",
+      "success": true
+    },
+    {
+      "id": "146",
+      "name": "ח9",
+      "success": true
+    },
+    {
+      "id": "22",
+      "name": "ט1",
+      "success": true
+    },
+    {
+      "id": "21",
+      "name": "ט2",
+      "success": true
+    },
+    {
+      "id": "18",
+      "name": "ט3",
+      "success": true
+    },
+    {
+      "id": "23",
+      "name": "ט4",
+      "success": true
+    },
+    {
+      "id": "37",
+      "name": "ט5",
+      "success": true
+    },
+    {
+      "id": "45",
+      "name": "ט6",
+      "success": true
+    },
+    {
+      "id": "64",
+      "name": "ט7",
+      "success": true
+    },
+    {
+      "id": "75",
+      "name": "ט8",
+      "success": true
+    },
+    {
+      "id": "31",
+      "name": "י1",
+      "success": true
+    },
+    {
+      "id": "32",
+      "name": "י2",
+      "success": true
+    },
+    {
+      "id": "33",
+      "name": "י3",
+      "success": true
+    },
+    {
+      "id": "34",
+      "name": "י4",
+      "success": true
+    },
+    {
+      "id": "36",
+      "name": "י5",
+      "success": true
+    },
+    {
+      "id": "59",
+      "name": "י6",
+      "success": true
+    },
+    {
+      "id": "5",
+      "name": "י7",
+      "success": true
+    },
+    {
+      "id": "69",
+      "name": "י8",
+      "success": true
+    },
+    {
+      "id": "120",
+      "name": "י9",
+      "success": true
+    },
+    {
+      "id": "156",
+      "name": "י 10",
+      "success": true
+    },
+    {
+      "id": "41",
+      "name": "יא1",
+      "success": true
+    },
+    {
+      "id": "42",
+      "name": "יא2",
+      "success": true
+    },
+    {
+      "id": "43",
+      "name": "יא3",
+      "success": true
+    },
+    {
+      "id": "44",
+      "name": "יא4",
+      "success": true
+    },
+    {
+      "id": "58",
+      "name": "יא5",
+      "success": true
+    },
+    {
+      "id": "8",
+      "name": "יא6",
+      "success": true
+    },
+    {
+      "id": "25",
+      "name": "יא7",
+      "success": true
+    },
+    {
+      "id": "76",
+      "name": "יא8",
+      "success": true
+    },
+    {
+      "id": "144",
+      "name": "יא9",
+      "success": true
+    },
+    {
+      "id": "157",
+      "name": "יא10",
+      "success": true
+    },
+    {
+      "id": "53",
+      "name": "יב1",
+      "success": true
+    },
+    {
+      "id": "54",
+      "name": "יב2",
+      "success": true
+    },
+    {
+      "id": "55",
+      "name": "יב3",
+      "success": true
+    },
+    {
+      "id": "56",
+      "name": "יב4",
+      "success": true
+    },
+    {
+      "id": "27",
+      "name": "יב5",
+      "success": true
+    },
+    {
+      "id": "51",
+      "name": "יב6",
+      "success": true
+    },
+    {
+      "id": "61",
+      "name": "יב7",
+      "success": true
+    },
+    {
+      "id": "123",
+      "name": "יב8",
+      "success": true
+    },
+    {
+      "id": "148",
+      "name": "יב9",
+      "success": true
+    }
+  ]
+}

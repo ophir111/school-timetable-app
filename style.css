@@ -356,3 +356,11 @@ h1 {
   background: var(--button-hover);
   box-shadow: 0 4px 12px var(--border);
 }
+
+
+#updateStatus {
+  margin: 10px 0 18px;
+  text-align: center;
+  font-size: 0.9rem;
+  opacity: 0.75;
+}

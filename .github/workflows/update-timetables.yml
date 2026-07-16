@@ -1,0 +1,55 @@
+name: Update timetables
+
+on:
+  # Allows you to press "Run workflow" manually.
+  workflow_dispatch:
+
+  # Runs at minutes 7 and 37 of every hour.
+  # The unusual minutes help avoid GitHub's busiest times.
+  schedule:
+    - cron: "7,37 * * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: timetable-scraper
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install project packages
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Scrape all timetables
+        run: npm run scrape
+
+      - name: Commit updated timetable files
+        run: |
+          git config user.name "timetable-updater[bot]"
+          git config user.email "timetable-updater[bot]@users.noreply.github.com"
+
+          git add data/
+
+          if git diff --cached --quiet; then
+            echo "No timetable changes detected."
+            exit 0
+          fi
+
+          git commit -m "Update timetable data"
+          git push

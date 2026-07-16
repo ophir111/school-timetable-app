@@ -4,7 +4,9 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "scrape": "node scraper/scrape-timetables.js",
+    "scrape:test": "node scraper/scrape-timetables.js"
   },
   "keywords": [],
   "author": "",
@@ -15,5 +17,8 @@
     "express": "^5.1.0",
     "fetch-cookie": "^3.2.0",
     "tough-cookie": "^6.0.2"
+  },
+  "devDependencies": {
+    "playwright": "^1.61.1"
   }
 }
