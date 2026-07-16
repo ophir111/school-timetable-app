@@ -1,52 +1,58 @@
+const makeFetchCookie = require("fetch-cookie").default;
+const { CookieJar } = require("tough-cookie");
+
 const SCHOOL_URL = "https://gymnasia.iscool.co.il/";
 
-export default async (request) => {
-  const requestUrl = new URL(request.url);
-
+exports.handler = async function (event) {
   try {
     const classId =
-      requestUrl.searchParams.get("classId") || "22";
+      event.queryStringParameters?.classId || "22";
 
     if (!/^\d+$/.test(classId)) {
-      return new Response("Invalid class ID", {
-        status: 400,
-        headers: {
-          "Content-Type": "text/plain; charset=utf-8"
-        }
-      });
+      return textResponse(400, "Invalid class ID");
     }
 
-    const firstResponse = await fetch(SCHOOL_URL, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
-          "AppleWebKit/537.36 Chrome/150 Safari/537.36",
-        "Accept":
-          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "he-IL,he;q=0.9,en;q=0.8"
-      },
-      redirect: "follow"
-    });
+    const cookieJar = new CookieJar();
+
+    // Keep cookies between the first GET and the POST.
+    const fetchWithCookies = makeFetchCookie(
+      global.fetch,
+      cookieJar
+    );
+
+    /*
+     * First request:
+     * establish the ASP.NET session and retrieve the
+     * current VIEWSTATE and EVENTVALIDATION values.
+     */
+    const firstResponse = await fetchWithCookies(
+      SCHOOL_URL,
+      {
+        method: "GET",
+        headers: browserHeaders(),
+        redirect: "follow"
+      }
+    );
 
     if (!firstResponse.ok) {
       throw new Error(
-        `First school request returned ${firstResponse.status}`
+        `Initial request returned ${firstResponse.status}`
       );
     }
 
     const firstHtml = await firstResponse.text();
 
-    const viewState = getValue(
+    const viewState = getInputValue(
       firstHtml,
       "__VIEWSTATE"
     );
 
-    const viewStateGenerator = getValue(
+    const viewStateGenerator = getInputValue(
       firstHtml,
       "__VIEWSTATEGENERATOR"
     );
 
-    const eventValidation = getValue(
+    const eventValidation = getInputValue(
       firstHtml,
       "__EVENTVALIDATION"
     );
@@ -61,66 +67,72 @@ export default async (request) => {
       );
     }
 
-    const formData = new URLSearchParams();
+    /*
+     * The working browser request uses multipart/form-data.
+     * FormData generates the correct boundary automatically.
+     */
+    const formData = new FormData();
 
-    formData.set(
+    formData.append(
       "__EVENTTARGET",
       "dnn$ctr17993$TimeTableView$btnChangesTable"
     );
 
-    formData.set("__EVENTARGUMENT", "");
-    formData.set("__LASTFOCUS", "");
-    formData.set("__VIEWSTATE", viewState);
+    formData.append("__EVENTARGUMENT", "");
+    formData.append("__LASTFOCUS", "");
+    formData.append("__VIEWSTATE", viewState);
 
-    formData.set(
+    formData.append(
       "__VIEWSTATEGENERATOR",
       viewStateGenerator
     );
 
-    formData.set(
+    formData.append(
       "__EVENTVALIDATION",
       eventValidation
     );
 
-    formData.set(
+    formData.append(
       "dnn$ctr17993$TimeTableView$ClassesList",
       classId
     );
 
-    formData.set(
-      "dnn$ctr17993$TimeTableView$MainControl$WeekShift",
-      "0"
-    );
-
-    formData.set(
+    /*
+     * This must be empty. The previous code incorrectly
+     * submitted the value 8.
+     */
+    formData.append(
       "dnn$ctr17993$TimeTableView$ControlId",
-      "8"
+      ""
     );
 
-    formData.set("ScrollTop", "");
-    formData.set("__dnnVariable", "");
+    formData.append("ScrollTop", "");
+    formData.append("__dnnVariable", "");
 
-    const secondResponse = await fetch(SCHOOL_URL, {
-      method: "POST",
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
-          "AppleWebKit/537.36 Chrome/150 Safari/537.36",
-        "Accept":
-          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "he-IL,he;q=0.9,en;q=0.8",
-        "Content-Type":
-          "application/x-www-form-urlencoded",
-        "Origin": "https://gymnasia.iscool.co.il",
-        "Referer": SCHOOL_URL
-      },
-      body: formData.toString(),
-      redirect: "follow"
-    });
+    /*
+     * Do not manually set Content-Type here.
+     * fetch() must generate the multipart boundary itself.
+     */
+    const secondResponse = await fetchWithCookies(
+      SCHOOL_URL,
+      {
+        method: "POST",
+        headers: {
+          ...browserHeaders(),
+          "Cache-Control": "max-age=0",
+          Origin: "https://gymnasia.iscool.co.il",
+          Referer: SCHOOL_URL
+        },
+        body: formData,
+        redirect: "follow"
+      }
+    );
 
     const html = await secondResponse.text();
 
-    if (secondResponse.url.includes("Error500.htm")) {
+    if (
+      secondResponse.url.includes("Error500.htm")
+    ) {
       throw new Error(
         "School website returned its Error500 page"
       );
@@ -128,55 +140,80 @@ export default async (request) => {
 
     if (!html.includes("TTTable")) {
       throw new Error(
-        `Timetable was not found. ` +
-        `Status: ${secondResponse.status}, ` +
-        `URL: ${secondResponse.url}, ` +
-        `length: ${html.length}`
+        [
+          "Timetable was not found.",
+          `Status: ${secondResponse.status}.`,
+          `Final URL: ${secondResponse.url}.`,
+          `Response length: ${html.length}.`,
+          `VIEWSTATE length: ${viewState.length}.`,
+          `EVENTVALIDATION length: ${eventValidation.length}.`
+        ].join(" ")
       );
     }
 
-    return new Response(html, {
-      status: 200,
+    return {
+      statusCode: 200,
       headers: {
         "Content-Type": "text/html; charset=utf-8",
         "Cache-Control":
           "public, max-age=120, s-maxage=120"
-      }
-    });
+      },
+      body: html
+    };
   } catch (error) {
     console.error("Timetable function error:", error);
 
-    return new Response(
-      `Timetable error: ${error.message}`,
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "text/plain; charset=utf-8"
-        }
-      }
+    return textResponse(
+      500,
+      `Timetable error: ${error.message}`
     );
   }
 };
 
-function getValue(html, id) {
-  const inputRegex = new RegExp(
-    `<input[^>]*id=["']${escapeRegExp(id)}["'][^>]*>`,
+function browserHeaders() {
+  return {
+    Accept:
+      "text/html,application/xhtml+xml," +
+      "application/xml;q=0.9,image/avif," +
+      "image/webp,image/apng,*/*;q=0.8",
+
+    "Accept-Language":
+      "he-IL,he;q=0.9,en-GB;q=0.8," +
+      "en;q=0.7,en-US;q=0.6",
+
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+      "AppleWebKit/537.36 (KHTML, like Gecko) " +
+      "Chrome/150.0.0.0 Safari/537.36",
+
+    "Upgrade-Insecure-Requests": "1"
+  };
+}
+
+function getInputValue(html, id) {
+  const escapedId = escapeRegExp(id);
+
+  const inputPattern = new RegExp(
+    `<input\\b(?=[^>]*\\bid=["']${escapedId}["'])[^>]*>`,
     "i"
   );
 
-  const inputTag = html.match(inputRegex)?.[0];
+  const inputTag = html.match(inputPattern)?.[0];
 
   if (!inputTag) {
     return "";
   }
 
   const valueMatch = inputTag.match(
-    /value=["']([^"']*)["']/i
+    /\bvalue\s*=\s*(?:"([^"]*)"|'([^']*)')/i
   );
 
-  return valueMatch
-    ? decodeHtml(valueMatch[1])
-    : "";
+  const value =
+    valueMatch?.[1] ??
+    valueMatch?.[2] ??
+    "";
+
+  return decodeHtml(value);
 }
 
 function decodeHtml(value) {
@@ -184,6 +221,7 @@ function decodeHtml(value) {
     .replaceAll("&amp;", "&")
     .replaceAll("&quot;", '"')
     .replaceAll("&#39;", "'")
+    .replaceAll("&#x27;", "'")
     .replaceAll("&lt;", "<")
     .replaceAll("&gt;", ">");
 }
@@ -193,4 +231,15 @@ function escapeRegExp(value) {
     /[.*+?^${}()|[\]\\]/g,
     "\\$&"
   );
+}
+
+function textResponse(statusCode, body) {
+  return {
+    statusCode,
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "no-store"
+    },
+    body
+  };
 }
