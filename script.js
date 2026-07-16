@@ -4,7 +4,9 @@ const dayButtonsDiv = document.getElementById("dayButtons");
 const classSelect = document.getElementById("classSelect");
 let savedClass = localStorage.getItem("selectedClass");
 const themeToggle = document.getElementById("themeToggle");
-const SERVER_URL = "/.netlify/functions";
+const DATA_URL = "/data";
+const updateStatus =
+  document.getElementById("updateStatus");
 
 const lessonTimes = {
   1: { start: "08:20", end: "09:00" },
@@ -19,110 +21,355 @@ const lessonTimes = {
 };
 
 button.addEventListener("click", async () => {
+  await loadSelectedTimetable({
+    forceRefresh: true
+  });
+});
+
+async function loadSelectedTimetable(
+  { forceRefresh = false } = {}
+) {
   button.disabled = true;
-  button.innerText = "טוען...";
   classSelect.disabled = true;
 
+  button.innerText = forceRefresh
+    ? "מרענן..."
+    : "טוען...";
+
   try {
-    const selectedClass = classSelect.value;
-    const response = await fetch(`${SERVER_URL}/timetable?classId=${selectedClass}`);
+    await ensureClassListLoaded(forceRefresh);
+
+    const selectedClass =
+      classSelect.value ||
+      savedClass ||
+      classSelect.options[0]?.value;
+
+    if (!selectedClass) {
+      throw new Error("No class is available");
+    }
+
+    classSelect.value = selectedClass;
+
+    const cacheBuster = forceRefresh
+      ? `?time=${Date.now()}`
+      : "";
+
+    const response = await fetch(
+      `${DATA_URL}/${encodeURIComponent(
+        selectedClass
+      )}.html${cacheBuster}`,
+      {
+        cache: forceRefresh
+          ? "no-store"
+          : "default"
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        `Timetable file returned ${response.status}`
+      );
+    }
+
     const htmlText = await response.text();
 
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(htmlText, "text/html");
+    processTimetableHtml(htmlText);
 
-    const table = doc.querySelector(".TTTable");
+    savedClass = selectedClass;
 
-    if (!table) {
-      throw new Error("Could not find timetable table");
-    }
+    localStorage.setItem(
+      "selectedClass",
+      selectedClass
+    );
 
-    const classList = doc.querySelector("#dnn_ctr17993_TimeTableView_ClassesList");
+    await updateLastUpdatedText(forceRefresh);
 
-    classSelect.innerHTML = "";
-
-    Array.from(classList.options).forEach((option) => {
-      const newOption = document.createElement("option");
-      newOption.value = option.value;
-      newOption.innerText = option.innerText;
-
-      if (
-        option.value === savedClass ||
-        (!savedClass && option.selected)
-      ) {
-        newOption.selected = true;
-      }
-
-      classSelect.appendChild(newOption);
-    });
-
-    const rows = Array.from(table.children[0].children);
-    const timetableItems = [];
-
-    const headerCells = Array.from(rows[0].children);
-    let days = [];
-
-    for (let i = 1; i < headerCells.length; i++) {
-      days.push(headerCells[i].innerText.trim());
-    }
-
-    rows.forEach((row, rowIndex) => {
-      if (rowIndex === 0) return;
-
-      const cells = Array.from(row.children);
-      if (cells.length < 2) return;
-
-      const lessonNumber = cells[0].innerText.trim();
-
-      for (let i = 1; i < cells.length; i++) {
-        const cell = cells[i];
-        const dayName = days[i - 1];
-
-        const items = cell.querySelectorAll(
-          ".TTLesson, .TableFreeChange, .TableFillChange, .TableEventChange"
-        );
-
-        items.forEach((item) => {
-          const type = getItemType(item);
-
-          let timetableItem = {
-            day: dayName,
-            lessonNumber: lessonNumber,
-            type: type,
-            rawText: item.innerText.trim()
-          };
-
-          if (type === "lesson") {
-            const lessonData = parseLesson(item);
-
-            timetableItem.subject = lessonData.subject;
-            timetableItem.details = lessonData.details;
-            timetableItem.teacher = lessonData.teacher;
-          }
-
-          timetableItems.push(timetableItem);
-        });
-      }
-    });
-
-    const todayName = getTodayHebrewName();
-    const todayDay = days.find(day => cleanText(day).includes(cleanText(todayName)));
-
-    if (todayDay) {
-      const todayItems = timetableItems.filter(item => item.day === todayDay);
-      renderTimetable(todayItems, days, timetableItems, todayDay);
-    } else {
-      renderTimetable(timetableItems, days, timetableItems, "all");
-    }
-
+    button.innerText = "רענן מערכת";
   } catch (error) {
     console.error(error);
+
+    updateStatus.innerText =
+      "טעינת המערכת נכשלה";
+
     alert("טעינת המערכת נכשלה");
+
+    button.innerText = "נסה שוב";
+  } finally {
+    button.disabled = false;
+    classSelect.disabled = false;
+  }
+}
+
+async function ensureClassListLoaded(
+  forceRefresh = false
+) {
+  if (
+    classSelect.options.length > 1 &&
+    classSelect.value
+  ) {
+    return;
   }
 
-  button.disabled = false;
-  button.innerText = "טען מערכת";
-  classSelect.disabled = false;
+  const cacheBuster = forceRefresh
+    ? `?time=${Date.now()}`
+    : "";
+
+  const response = await fetch(
+    `${DATA_URL}/classes.json${cacheBuster}`,
+    {
+      cache: forceRefresh
+        ? "no-store"
+        : "default"
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Class list returned ${response.status}`
+    );
+  }
+
+  const data = await response.json();
+
+  if (
+    !Array.isArray(data.classes) ||
+    data.classes.length === 0
+  ) {
+    throw new Error("Class list is empty");
+  }
+
+  classSelect.innerHTML = "";
+
+  for (const classInfo of data.classes) {
+    const option = document.createElement("option");
+
+    option.value = classInfo.id;
+    option.innerText = classInfo.name;
+
+    classSelect.appendChild(option);
+  }
+
+  const classStillExists = data.classes.some(
+    (classInfo) => classInfo.id === savedClass
+  );
+
+  if (classStillExists) {
+    classSelect.value = savedClass;
+  } else {
+    classSelect.selectedIndex = 0;
+    savedClass = classSelect.value;
+
+    localStorage.setItem(
+      "selectedClass",
+      savedClass
+    );
+  }
+}
+
+function processTimetableHtml(htmlText) {
+  const parser = new DOMParser();
+
+  const doc = parser.parseFromString(
+    htmlText,
+    "text/html"
+  );
+
+  const table = doc.querySelector(".TTTable");
+
+  if (!table) {
+    throw new Error(
+      "Could not find timetable table"
+    );
+  }
+
+  const rows = Array.from(
+    table.children[0].children
+  );
+
+  const timetableItems = [];
+
+  const headerCells = Array.from(
+    rows[0].children
+  );
+
+  const days = [];
+
+  for (
+    let index = 1;
+    index < headerCells.length;
+    index++
+  ) {
+    days.push(
+      headerCells[index].innerText.trim()
+    );
+  }
+
+  rows.forEach((row, rowIndex) => {
+    if (rowIndex === 0) {
+      return;
+    }
+
+    const cells = Array.from(row.children);
+
+    if (cells.length < 2) {
+      return;
+    }
+
+    const lessonNumber =
+      cells[0].innerText.trim();
+
+    for (
+      let index = 1;
+      index < cells.length;
+      index++
+    ) {
+      const cell = cells[index];
+      const dayName = days[index - 1];
+
+      const items = cell.querySelectorAll(
+        ".TTLesson, " +
+        ".TableFreeChange, " +
+        ".TableFillChange, " +
+        ".TableEventChange"
+      );
+
+      items.forEach((item) => {
+        const type = getItemType(item);
+
+        const timetableItem = {
+          day: dayName,
+          lessonNumber,
+          type,
+          rawText: item.innerText.trim()
+        };
+
+        if (type === "lesson") {
+          const lessonData = parseLesson(item);
+
+          timetableItem.subject =
+            lessonData.subject;
+
+          timetableItem.details =
+            lessonData.details;
+
+          timetableItem.teacher =
+            lessonData.teacher;
+        }
+
+        timetableItems.push(timetableItem);
+      });
+    }
+  });
+
+  const todayName = getTodayHebrewName();
+
+  const todayDay = days.find((day) => {
+    return cleanText(day).includes(
+      cleanText(todayName)
+    );
+  });
+
+  if (todayDay) {
+    const todayItems = timetableItems.filter(
+      (item) => item.day === todayDay
+    );
+
+    renderTimetable(
+      todayItems,
+      days,
+      timetableItems,
+      todayDay
+    );
+  } else {
+    renderTimetable(
+      timetableItems,
+      days,
+      timetableItems,
+      "all"
+    );
+  }
+}
+
+async function updateLastUpdatedText(
+  forceRefresh = false
+) {
+  try {
+    const cacheBuster = forceRefresh
+      ? `?time=${Date.now()}`
+      : "";
+
+    const response = await fetch(
+      `${DATA_URL}/status.json${cacheBuster}`,
+      {
+        cache: forceRefresh
+          ? "no-store"
+          : "default"
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        `Status returned ${response.status}`
+      );
+    }
+
+    const status = await response.json();
+
+    const updatedDate = new Date(
+      status.updatedAt
+    );
+
+    if (
+      Number.isNaN(updatedDate.getTime())
+    ) {
+      throw new Error(
+        "Invalid update timestamp"
+      );
+    }
+
+    const formattedTime =
+      new Intl.DateTimeFormat("he-IL", {
+        dateStyle: "short",
+        timeStyle: "short"
+      }).format(updatedDate);
+
+    const ageMinutes = Math.floor(
+      (Date.now() - updatedDate.getTime()) /
+      60000
+    );
+
+    if (ageMinutes > 45) {
+      updateStatus.innerText =
+        `עודכן לאחרונה: ${formattedTime} ` +
+        `— המידע עשוי להיות ישן`;
+    } else {
+      updateStatus.innerText =
+        `עודכן לאחרונה: ${formattedTime}`;
+    }
+  } catch (error) {
+    console.warn(
+      "Could not load update status:",
+      error
+    );
+
+    updateStatus.innerText =
+      "זמן העדכון האחרון אינו זמין";
+  }
+}
+
+classSelect.addEventListener("change", async () => {
+  savedClass = classSelect.value;
+
+  localStorage.setItem(
+    "selectedClass",
+    savedClass
+  );
+
+  await loadSelectedTimetable();
+});
+
+window.addEventListener("load", async () => {
+  await loadSelectedTimetable();
 });
 
 function getItemType(item) {
